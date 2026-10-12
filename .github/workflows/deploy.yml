@@ -96,19 +96,8 @@ jobs:
         run: git lfs checkout
 
       - name: Apply local patches
-        run: |
-          python3 - <<'EOF'
-          import io
-          p = 'apps/web/src/components/layout/footer/GatewayInfo.tsx'
-          s = io.open(p, encoding='utf-8').read()
-          old = 'article_' + chr(36) + '{id}'
-          new = 'article-' + chr(36) + '{id}'
-          if old in s:
-              io.open(p, 'w', encoding='utf-8').write(s.replace(old, new))
-              print('patched: roomName underscore -> hyphen')
-          else:
-              print('pattern absent (upstream already fixed?)')
-          EOF
+        run: python3 local-patches.py
+
       - uses: pnpm/action-setup@v2
 
       - name: Use Node.js ${{ matrix.node-version }}
