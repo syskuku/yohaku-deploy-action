@@ -148,6 +148,20 @@ patch('yohaku-oss/packages/rich-content/src/lexical/portable/image.tsx',
       '<ImageExifOverlay src={src} />',
       'kodo slim: lexical exif src')
 
+
+# --- 9. 首页社交图标：主页 + 画廊类型 ---
+patch('apps/web/src/components/modules/home/SocialIcon.tsx',
+      "  mail: [\n    'Email',\n    <i className=\"i-mingcute-mail-line\" />,",
+      "  home: ['主页', <i className=\"i-mingcute-home-1-line\" />, '#171717', (id) => id],\n"
+      "  gallery: [\n"
+      "    '画廊',\n"
+      "    <i className=\"i-mingcute-photo-album-line\" />,\n"
+      "    '#F5A623',\n"
+      "    (id) => id,\n"
+      "  ],\n"
+      "  mail: [\n    'Email',\n    <i className=\"i-mingcute-mail-line\" />,",
+      'social icons: home + gallery')
+
 def main():
     failed = []
     for path, old, new, name, required in PATCHES:
