@@ -165,8 +165,8 @@ patch('apps/web/src/components/modules/home/SocialIcon.tsx',
 
 # --- 10. GitHub/link 卡片渲染（PortableLinkCard + 客户端 enrichment）---
 patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
-      "import { useEffect, useMemo, useRef } from 'react'",
-      "import { useEffect, useMemo, useRef, useState } from 'react'",
+      "import { useEffect, useMemo } from 'react'",
+      "import { useEffect, useMemo, useState } from 'react'",
       'link-card: useState import')
 
 patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
