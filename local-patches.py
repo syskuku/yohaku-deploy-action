@@ -162,6 +162,169 @@ patch('apps/web/src/components/modules/home/SocialIcon.tsx',
       "  mail: [\n    'Email',\n    <i className=\"i-mingcute-mail-line\" />,",
       'social icons: home + gallery')
 
+
+# --- 10. GitHub/link 卡片渲染（PortableLinkCard + 客户端 enrichment）---
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "import { useEffect, useMemo, useRef } from 'react'",
+      "import { useEffect, useMemo, useRef, useState } from 'react'",
+      'link-card: useState import')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "import { BlockLinkRenderer } from '~/components/ui/markdown/renderers/LinkRenderer'\n",
+      "",
+      'link-card: drop unused import')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "  BlockLinkCard: ({ fallback, url }) => (\n"
+      "    <BlockLinkRenderer fallback={fallback} href={url} />\n"
+      "  ),\n",
+      "  // BlockLinkCard: 不覆盖，交给 PortableLinkCard 渲染真卡片\n",
+      'link-card: drop plain-link slot')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "const richContentSlots: HostCapabilities['slots'] = {",
+      "type LinkCardEnrichment = {\n"
+      "  attributes?: Array<{\n"
+      "    format?: string\n"
+      "    key: string\n"
+      "    label?: string\n"
+      "    value: boolean | number | string\n"
+      "  }>\n"
+      "  category?: string\n"
+      "  color?: string\n"
+      "  description?: string\n"
+      "  subtype?: string\n"
+      "  title: string\n"
+      "  url: string\n"
+      "}\n"
+      "\n"
+      "const linkCardCache = new Map<string, LinkCardEnrichment | null>()\n"
+      "\n"
+      "function collectLinkCardUrls(node: unknown, out: Set<string>) {\n"
+      "  if (!node || typeof node !== 'object') return\n"
+      "  const n = node as Record<string, any>\n"
+      "  if (n.type === 'link-card' && typeof n.url === 'string') out.add(n.url)\n"
+      "  for (const v of Object.values(n)) {\n"
+      "    if (v && typeof v === 'object') collectLinkCardUrls(v, out)\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "const GITHUB_RESERVED = new Set([\n"
+      "  'about', 'apps', 'collections', 'events', 'explore', 'features', 'issues',\n"
+      "  'login', 'marketplace', 'new', 'notifications', 'orgs', 'pricing', 'pulls',\n"
+      "  'search', 'settings', 'signup', 'sponsors', 'topics', 'trending',\n"
+      "])\n"
+      "\n"
+      "async function resolveLinkCard(url: string): Promise<LinkCardEnrichment | null> {\n"
+      "  try {\n"
+      "    const gh = /^https?:\\/\\/github\\.com\\/([^/?#]+)\\/([^/?#]+)\\/?(?:[?#].*)?$/i.exec(url)\n"
+      "    if (gh && !GITHUB_RESERVED.has(gh[1].toLowerCase())) {\n"
+      "      const res = await fetch(`https://api.github.com/repos/${gh[1]}/${gh[2]}`, {\n"
+      "        headers: { Accept: 'application/vnd.github+json' },\n"
+      "      })\n"
+      "      if (!res.ok) return null\n"
+      "      const d = await res.json()\n"
+      "      return {\n"
+      "        attributes: [\n"
+      "          { format: 'number', key: 'stars', label: 'Stars', value: Number(d.stargazers_count) || 0 },\n"
+      "          { format: 'number', key: 'forks', label: 'Forks', value: Number(d.forks_count) || 0 },\n"
+      "          ...(d.language ? [{ key: 'language', label: 'Language', value: String(d.language) }] : []),\n"
+      "        ],\n"
+      "        category: 'github',\n"
+      "        color: '#181717',\n"
+      "        description: typeof d.description === 'string' ? d.description : '',\n"
+      "        subtype: d.fork ? 'fork' : 'repo',\n"
+      "        title: String(d.full_name || `${gh[1]}/${gh[2]}`),\n"
+      "        url,\n"
+      "      }\n"
+      "    }\n"
+      "    const res = await fetch(`/api/v3/enrichment/resolve?url=${encodeURIComponent(url)}`)\n"
+      "    if (res.status !== 200) return null\n"
+      "    const json = await res.json()\n"
+      "    const data = json?.data\n"
+      "    return data && typeof data.title === 'string' ? { ...data, url } : null\n"
+      "  } catch {\n"
+      "    return null\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "function useLinkCardEnrichments(content: unknown): Record<string, LinkCardEnrichment> {\n"
+      "  const [map, setMap] = useState<Record<string, LinkCardEnrichment>>({})\n"
+      "  useEffect(() => {\n"
+      "    const urls = new Set<string>()\n"
+      "    collectLinkCardUrls(content, urls)\n"
+      "    const cachedMap: Record<string, LinkCardEnrichment> = {}\n"
+      "    const missing: string[] = []\n"
+      "    for (const u of urls) {\n"
+      "      if (linkCardCache.has(u)) {\n"
+      "        const v = linkCardCache.get(u)\n"
+      "        if (v) cachedMap[u] = v\n"
+      "      } else {\n"
+      "        missing.push(u)\n"
+      "      }\n"
+      "    }\n"
+      "    if (Object.keys(cachedMap).length) {\n"
+      "      setMap((prev) => ({ ...prev, ...cachedMap }))\n"
+      "    }\n"
+      "    if (!missing.length) return\n"
+      "    let cancelled = false\n"
+      "    void Promise.all(\n"
+      "      missing.slice(0, 12).map(async (u) => [u, await resolveLinkCard(u)] as const),\n"
+      "    ).then((pairs) => {\n"
+      "      if (cancelled) return\n"
+      "      const next: Record<string, LinkCardEnrichment> = {}\n"
+      "      for (const [u, v] of pairs) {\n"
+      "        linkCardCache.set(u, v)\n"
+      "        if (v) next[u] = v\n"
+      "      }\n"
+      "      if (Object.keys(next).length) setMap((prev) => ({ ...prev, ...next }))\n"
+      "    })\n"
+      "    return () => {\n"
+      "      cancelled = true\n"
+      "    }\n"
+      "  }, [content])\n"
+      "  return map\n"
+      "}\n"
+      "const richContentSlots: HostCapabilities['slots'] = {"
+      '',
+      'link-card: enrichment helper')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "  const webHost = useWebHost({\n"
+      "    nestedDocPresentation: 'modal',\n"
+      "    slots: richContentSlots,\n"
+      "  })\n",
+      "  const webHost = useWebHost({\n"
+      "    nestedDocPresentation: 'modal',\n"
+      "    slots: richContentSlots,\n"
+      "  })\n"
+      "  const linkCardEnrichments = useLinkCardEnrichments(content)\n"
+      "  const hostedWebHost = useMemo(\n"
+      "    () =>\n"
+      "      Object.keys(linkCardEnrichments).length\n"
+      "        ? { ...webHost, enrichments: linkCardEnrichments }\n"
+      "        : webHost,\n"
+      "    [webHost, linkCardEnrichments],\n"
+      "  )\n",
+      'link-card: hosted web host')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "    <HostProvider host={webHost}>\n"
+      "      <RichContentBody",
+      "    <HostProvider host={hostedWebHost}>\n"
+      "      <RichContentBody",
+      'link-card: main host provider')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "        <HostProvider host={webHost}>{nestedContent}</HostProvider>",
+      "        <HostProvider host={hostedWebHost}>{nestedContent}</HostProvider>",
+      'link-card: nested host provider')
+
+patch('apps/web/src/components/ui/rich-content/LexicalContent.tsx',
+      "  }, [isMobile, present, webHost])",
+      "  }, [isMobile, present, hostedWebHost])",
+      'link-card: effect deps')
+
 def main():
     failed = []
     for path, old, new, name, required in PATCHES:
