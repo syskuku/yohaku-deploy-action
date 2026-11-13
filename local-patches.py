@@ -341,6 +341,25 @@ patch('yohaku-oss/packages/rich-content/src/styles/yohaku-block-styles.css',
       "/* ─── chat · 对话（气泡版）───────────────────────────────────────────────── */\n\n.rich-chat-yohaku {\n  display: flex;\n  flex-direction: column;\n  gap: 20px;\n  margin: 1.5rem 0;\n  font-family: var(\n    --app-font-sans,\n    -apple-system,\n    'PingFang SC',\n    'Microsoft YaHei',\n    'Inter',\n    system-ui,\n    sans-serif\n  );\n  /* 长对话屏外跳过渲染：首屏更快、滚动分片渲染 */\n  content-visibility: auto;\n  contain-intrinsic-size: auto 480px;\n}\n\n.rich-chat-yohaku-turn {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  align-self: flex-start;\n  max-width: 88%;\n  font-size: var(--text-copy-15, 15px);\n  line-height: var(--text-copy-15--line-height, 1.7);\n  color: var(--color-neutral-9);\n}\n\n.rich-chat-yohaku-userbody {\n  align-self: flex-end;\n  align-items: flex-end;\n  text-align: left;\n}\n\n.rich-chat-yohaku-name {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  font-size: var(--text-caption-10, 10px);\n  line-height: var(--text-caption-10--line-height, 1.4);\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n  font-weight: 500;\n  color: var(--color-neutral-7);\n}\n\n.rich-chat-yohaku-dot {\n  width: 5px;\n  height: 5px;\n  border-radius: 9999px;\n  background: var(--color-neutral-6);\n  flex-shrink: 0;\n}\n\n.rich-chat-yohaku-dot[data-tone='accent'] {\n  background: var(--color-accent);\n}\n\n.rich-chat-yohaku-body {\n  padding: 10px 14px;\n  border-radius: 14px;\n  border: 1px solid var(--color-neutral-3, #e8e8e8);\n  background: var(--color-neutral-2, #fafafa);\n  overflow-wrap: anywhere;\n  max-width: 100%;\n}\n\n.rich-chat-yohaku-body > :first-child {\n  margin-top: 0;\n}\n.rich-chat-yohaku-body > :last-child {\n  margin-bottom: 0;\n}\n\n.rich-chat-yohaku-userbody .rich-chat-yohaku-body {\n  display: block;\n  border-color: color-mix(in srgb, var(--color-accent) 22%, var(--color-neutral-3, #e8e8e8));\n  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-neutral-1, #fff));\n  border-bottom-right-radius: 4px;\n}\n\n.rich-chat-yohaku-turn:not(.rich-chat-yohaku-userbody) .rich-chat-yohaku-body {\n  border-bottom-left-radius: 4px;\n}\n\n.rich-chat-yohaku-userbody .rich-chat-yohaku-body > * {\n  display: block;\n  margin: 0;\n  padding: 0;\n  background: none;\n}\n\n.rich-chat-yohaku-empty {\n  color: var(--color-neutral-7);\n  font-size: var(--text-label-12, 12px);\n  font-style: italic;\n  padding: 8px 0;\n}\n\n@media (max-width: 600px) {\n  .rich-chat-yohaku {\n    gap: 18px;\n  }\n  .rich-chat-yohaku-turn {\n    max-width: 94%;\n  }\n  .rich-chat-yohaku-body {\n    padding: 9px 12px;\n  }\n}",
       'chat: bubble style (A) + content-visibility')
 
+
+# --- 13. 恢复 theme=yohaku|shiro（上游 975d5931 去掉 shiro，mx 14.16 返回空 theme → Hero/Footer 全空）---
+patch('apps/web/src/app/[locale]/api.tsx',
+      "  const data = await apiClient.aggregate.getAggregateData<AppThemeConfig>(\n    'yohaku',",
+      "  const data = await apiClient.aggregate.getAggregateData<AppThemeConfig>(\n    'yohaku|shiro',",
+      'theme param yohaku|shiro')
+patch('apps/web/src/app/feed/route.tsx',
+      "    apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku'),\n  ])",
+      "    apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku|shiro'),\n  ])",
+      'theme param yohaku|shiro')
+patch('apps/web/src/lib/og-renderer.tsx',
+      "      await apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku')\n",
+      "      await apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku|shiro')\n",
+      'theme param yohaku|shiro')
+patch('apps/web/src/lib/og-skill.tsx',
+      "      apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku'),\n      fetchSkill(name),",
+      "      apiClient.aggregate.getAggregateData<AppThemeConfig>('yohaku|shiro'),\n      fetchSkill(name),",
+      'theme param yohaku|shiro')
+
 def main():
     failed = []
     for path, old, new, name, required in PATCHES:
